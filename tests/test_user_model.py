@@ -1,7 +1,7 @@
 import unittest
 
 from flasky import db
-from flasky.models import User
+from flasky.models import User, Permission, Role, AnonymousUser
 
 class UserModelTestCase(unittest.TestCase):
 
@@ -43,3 +43,13 @@ class UserModelTestCase(unittest.TestCase):
         token = u1.generate_reset_token()
         self.assertFalse(u2.reset_password(token, 'horse'))
         self.assertTrue(u2.verify_password('dog'))
+
+    def test_roles_and_permissions(self):
+        Role.insert_roles()
+        u = User(email='asdfxdfx@example12.com', password='cat')
+        self.assertTrue(u.can(Permission.WRITE_ARTICLES))
+        self.assertFalse(u.can(Permission.MODERATE_COMMENTS))
+
+    def test_anonymous_user(self):
+        u = AnonymousUser()
+        self.assertFalse(u.can(Permission.FOLLOW))
