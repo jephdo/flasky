@@ -5,13 +5,13 @@ from flask.ext.script import Manager, Shell
 from flask.ext.migrate import MigrateCommand
 
 from flasky import create_app, db
-from flasky.models import User, Role
+from flasky.models import User, Role, Post
 
 app = create_app(os.getenv('FLASK_CONFIG') or 'default')
 manager = Manager(app)
 
 def make_shell_context():
-    return dict(app=app, db=db, User=User, Role=Role)
+    return dict(app=app, db=db, User=User, Role=Role, Post=Post)
 
 # register the application and database instances and models so that they are
 # automatically imported into the shell

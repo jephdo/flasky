@@ -57,6 +57,29 @@ class Permission:
     ADMINISTER = 0x80
 
 
+class Post(db.Model):
+    __tablename__ = 'posts'
+    id = db.Column(db.Integer, primary_key=True)
+    body = db.Column(db.Text)
+    timestamp = db.Column(db.DateTime, index=True, default=datetime.utcnow)
+    author_id = db.Column(db.Integer, db.ForeignKey('users.id'))
+
+    @staticmethod
+    def generate_fake(count=100):
+        from random import seed, randint
+        import forgery_py
+
+        seed()
+        user_count = User.query.count()
+        for _ in range(count):
+            u = User.query.offset(randint(0, user_count - 1)).first()
+            p = Post(body=forgery_py.lorem_ipsum.sentences(randint(1, 3)),
+                timestamp=forgery_py.date.date(True),
+                author=u)
+            db.session.add(p)
+            db.session.commit()
+
+
 class User(UserMixin, db.Model):
     __tablename__ = 'users'
     id = db.Column(db.Integer, primary_key=True)
@@ -65,11 +88,13 @@ class User(UserMixin, db.Model):
     name = db.Column(db.String(64))
     location = db.Column(db.String(64))
     about_me = db.Column(db.Text())
+    avatar_hash = db.Column(db.String(32))
     member_since = db.Column(db.DateTime(), default=datetime.utcnow)
     last_seen = db.Column(db.DateTime(), default=datetime.utcnow)
     role_id = db.Column(db.Integer, db.ForeignKey('roles.id'))
     password_hash = db.Column(db.String(128))
     confirmed = db.Column(db.Boolean, default=False)
+    posts = db.relationship("Post", backref="author", lazy="dynamic")
 
     def __init__(self, **kwargs):
         super(User, self).__init__(**kwargs)
@@ -157,15 +182,42 @@ class User(UserMixin, db.Model):
         if request.is_secure:
             url = "https://secure.gravatar.com/avatar"
         else:
-            url = "http://www.gravtar.com/avatar"
+            url = "http://www.gravatar.com/avatar"
 
         hash_ = self.avatar_hash or hashlib.md5(self.email.encode("utf-8")).hexdigest()
 
         return "{url}/{hash_}?s={size}&d={default}&r={rating}".format(url=url,
             hash_=hash_, size=size, default=default, rating=rating)
 
+    @staticmethod
+    def generate_fake(count=100):
+        from sqlalchemy.exc import IntegrityError
+        from random import seed
+        import forgery_py
+
+        seed()
+        for _ in range(count):
+            u = User(email=forgery_py.internet.email_address(),
+                username=forgery_py.internet.user_name(True),
+                password=forgery_py.lorem_ipsum.word(),
+                confirmed=True,
+                name=forgery_py.name.full_name(),
+                location=forgery_py.address.city(),
+                about_me=forgery_py.lorem_ipsum.sentence(),
+                member_since=forgery_py.date.date(True))
+
+            db.session.add(u)
+
+#         The email addresses and usernames of users must be unique, but since ForgeryPy gen‐
+# erates these in completely random fashion, there is a risk of having duplicates. In this
+# unlikely event, the database session commit will throw an IntegrityError exception.
+            try:
+                db.session.commit()
+            except IntegrityError:
+                db.session.rollback()
+
     def __repr__(self):
-        return "<User: %r" % self.username
+        return "<User: %r>" % self.username
 
 
 class AnonymousUser(AnonymousUserMixin):
