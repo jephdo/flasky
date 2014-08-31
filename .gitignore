@@ -41,3 +41,5 @@ nosetests.xml
 # Virtual environment
 venv
 env
+
+.env
