@@ -5,7 +5,7 @@ from flask.ext.login import current_user, login_required
 from .forms import PostForm, EditProfileForm, EditProfileAdminForm
 from . import main
 from .. import db
-from ..auth import admin_required
+from ..auth import admin_required, permission_required
 from ..models import User, Role, Post, Permission
 
 @main.route('/', methods=['GET', 'POST'])
@@ -43,6 +43,22 @@ def user(username):
 def post(id):
     p = Post.query.get_or_404(id)
     return render_template("post.html", posts=[p])
+
+@main.route("/follow/<username>")
+@login_required
+@permission_required(Permission.FOLLOW)
+def follow(username):
+    user = User.query.filter_by(username=username).first()
+    if user is None:
+        flash("Invalid user.")
+        redirect(url_for(".index"))
+    if current_user.is_following(user):
+        flash("You are already following this user.")
+        return redirect(url_for(".user", username=username))
+
+    current_user.follow(user)
+    flash("You are now following %s." % username)
+    return redirect(url_for(".user", username=username))
 
 @main.route("/edit/<int:id>", methods=["GET", "POST"])
 @login_required
